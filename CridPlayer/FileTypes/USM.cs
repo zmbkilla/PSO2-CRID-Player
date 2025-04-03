@@ -208,6 +208,110 @@ namespace OpenTK.FileTypes
             foreach (BinaryWriter stream in fileStreams.Values) stream.Close();
             return filePaths;
         }
+
+        public Dictionary<string, List<string>> DemuxAsync(bool videoExtract, bool audioExtract,ref MemoryStream CridMS,ref MemoryStream ADXMS)
+        {
+
+            FileStream filePointer = File.OpenRead(_path);  // TODO: Use a binary reader
+            long fileSize = filePointer.Length;
+            Info info = new();
+            MemoryStream vms = new MemoryStream();
+            MemoryStream ams = new MemoryStream();
+
+            Dictionary<string, BinaryWriter> fileStreams = new(); // File paths as keys
+            Dictionary<string, List<string>> filePaths = new();
+            string path;
+            while (fileSize > 0)
+            {
+
+                byte[] byteBlock = new byte[32];
+                filePointer.Read(byteBlock, 0, byteBlock.Length);
+                fileSize -= 32;
+
+                info.signature = Tools.Bswap(BitConverter.ToUInt32(byteBlock, 0));
+                info.dataSize = Tools.Bswap(BitConverter.ToUInt32(byteBlock, 4));
+                info.dataOffset = byteBlock[9];
+                info.paddingSize = Tools.Bswap(BitConverter.ToUInt16(byteBlock, 10));
+                info.chno = byteBlock[12];
+                info.dataType = byteBlock[15];
+                info.frameTime = Tools.Bswap(BitConverter.ToUInt32(byteBlock, 16));
+                info.frameRate = Tools.Bswap(BitConverter.ToUInt32(byteBlock, 20));
+
+                int size = (int)(info.dataSize - info.dataOffset - info.paddingSize);
+                filePointer.Seek(info.dataOffset - 0x18, SeekOrigin.Current);
+                byte[] data = new byte[size];
+                filePointer.Read(data);
+                filePointer.Seek(info.paddingSize, SeekOrigin.Current);
+                fileSize -= info.dataSize - 0x18;
+
+                switch (info.signature)
+                {
+                    case 0x43524944: // CRID
+
+                        break;
+                    case 0x40534656: // @SFV    Video block
+                        switch (info.dataType)
+                        {
+                            case 0:
+                                if (videoExtract)
+                                {
+                                    MaskVideo(ref data, size);
+                                    //path = Path.Combine(outputDir, _filename[..^4] + ".m2v");
+                                    //if (!fileStreams.ContainsKey(path))
+                                    //{
+                                    //    fileStreams.Add(path, new BinaryWriter(new FileStream(path, FileMode.Create, FileAccess.Write)));
+                                    //    if (!filePaths.ContainsKey("m2v")) filePaths.Add("m2v", new List<string>{path});
+                                    //    else filePaths["m2v"].Add(path);
+                                    //}
+                                    //fileStreams[path].Write(data);
+                                    //vms.Write(data);
+                                    CridMS.Write(data);
+                                }
+                                break;
+                            default: // Not implemented, we don't have any uses for it
+                                break;
+                        }
+                        break;
+
+                    case 0x40534641: // @SFA    Audio block
+                        switch (info.dataType)
+                        {
+                            case 0:
+                                if (audioExtract)
+                                {
+                                    // Might need some extra work if the audio has to be decrypted during the demuxing
+                                    // (hello AudioMask)
+                                    //path = Path.Combine(outputDir, _filename[..^4] + $"_{info.chno}.adx");
+                                    //if (!fileStreams.ContainsKey(path))
+                                    //{
+                                    //    fileStreams.Add(path, new BinaryWriter(new FileStream(path, FileMode.Create, FileAccess.Write)));
+                                    //    if (!filePaths.ContainsKey("adx")) filePaths.Add("adx", new List<string> { path });
+                                    //    else filePaths["adx"].Add(path);
+                                    //}
+                                    MaskAudio(ref data, (uint)size);
+                                    //fileStreams[path].Write(data);
+                                    //ams.Write(data);
+                                    ADXMS.Write(data);
+                                }
+                                break;
+                            default: // No need to implement it, we lazy
+                                break;
+                        }
+                        break;
+
+                    case 0x40435545: // @CUE - Might be used to play a certain part of the video, but shouldn't be needed anyway (appears in cutscene Cs_Sumeru_AQ30161501_DT)
+                        Console.WriteLine("@CUE field detected in USM, skipping as we don't need it");
+                        break;
+                    default:
+                        Console.WriteLine("Signature {0} unknown, skipping...", info.signature);
+                        break;
+                }
+            }
+            // Closing Streams
+            filePointer.Close();
+            foreach (BinaryWriter stream in fileStreams.Values) stream.Close();
+            return filePaths;
+        }
     }
 
 }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using CridPlayer;
 using OpenTK.FileTypes;
 
 namespace UsmTool
@@ -82,6 +83,36 @@ namespace UsmTool
             
             file.Demux(true, true,ref video,ref audio);
             Console.WriteLine("Extraction completed !");
+            return true;
+        }
+        public bool DemuxASync(string filenameArg, byte[] key1Arg, byte[] key2Arg, ref MemoryStream VidMS, ref MemoryStream ADXMS)
+        {
+            if (!File.Exists(filenameArg)) throw new FileNotFoundException($"File {filenameArg} doesn't exist...");
+            string filename = Path.GetFileName(filenameArg);
+            byte[] key1, key2;
+            if (key1Arg.Length == 0 && key2Arg.Length == 0)
+            {
+                Console.WriteLine($"Finding encryption key for {filename}...");
+                (byte[], byte[])? split = KeySplitter(EncryptionKey(filename));
+                if (split == null) return false;
+                key1 = split.Value.Item1;
+                key2 = split.Value.Item2;
+            }
+            else
+            {
+                key1 = key1Arg;
+                key2 = key2Arg;
+            }
+            key1 = key1.Reverse().ToArray();
+            key2 = key2.Reverse().ToArray();
+
+            USM file = new(filenameArg, key1, key2);
+            //check if file is usm
+            byte[] check = File.ReadAllBytes(filenameArg)[0..4];
+            if (Encoding.ASCII.GetString(check).ToString() != "CRID")
+                return false;
+
+            file.DemuxAsync(true, true, ref VidMS, ref ADXMS);
             return true;
         }
     }
