@@ -33,6 +33,7 @@
             OpenFileBtn = new Button();
             FileDetailsTxt = new RichTextBox();
             OpenCridBtn = new Button();
+            SavelistBtn = new Button();
             SuspendLayout();
             // 
             // CRIDListBox
@@ -73,7 +74,7 @@
             // 
             // OpenCridBtn
             // 
-            OpenCridBtn.Location = new Point(518, 401);
+            OpenCridBtn.Location = new Point(439, 401);
             OpenCridBtn.Name = "OpenCridBtn";
             OpenCridBtn.Size = new Size(75, 23);
             OpenCridBtn.TabIndex = 4;
@@ -81,11 +82,22 @@
             OpenCridBtn.UseVisualStyleBackColor = true;
             OpenCridBtn.Click += OpenCridBtn_Click;
             // 
+            // SavelistBtn
+            // 
+            SavelistBtn.Location = new Point(572, 401);
+            SavelistBtn.Name = "SavelistBtn";
+            SavelistBtn.Size = new Size(153, 23);
+            SavelistBtn.TabIndex = 5;
+            SavelistBtn.Text = "Save current list to File";
+            SavelistBtn.UseVisualStyleBackColor = true;
+            SavelistBtn.Click += SavelistBtn_Click;
+            // 
             // OpenCridForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(SavelistBtn);
             Controls.Add(OpenCridBtn);
             Controls.Add(FileDetailsTxt);
             Controls.Add(OpenFileBtn);
@@ -104,5 +116,6 @@
         private Button OpenFileBtn;
         private RichTextBox FileDetailsTxt;
         private Button OpenCridBtn;
+        private Button SavelistBtn;
     }
 }

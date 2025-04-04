@@ -50,17 +50,17 @@ namespace CridPlayer
                     }
                 }
                 DirectoryTxt.Text = ofd.FolderName;
-                
+
             }
 
-            
-            
-            
+
+
+
         }
 
         private async void DirectoryTxt_TextChanged(object sender, EventArgs e)
         {
-            
+
             await Task.Run(() => fillitems());
         }
 
@@ -68,7 +68,7 @@ namespace CridPlayer
         {
             FileStream fscheck = null;
             byte[] filenamehash = filehash.ComputeHash(Encoding.ASCII.GetBytes(DirectoryTxt.Text));
-            string checkfilehash = BitConverter.ToString(filenamehash).Replace("-","").ToLowerInvariant();
+            string checkfilehash = BitConverter.ToString(filenamehash).Replace("-", "").ToLowerInvariant();
             bool justcreated = false;
             if (!File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\Filelist_" + checkfilehash + ".txt"))
             {
@@ -87,9 +87,9 @@ namespace CridPlayer
 
             if (Directory.Exists(DirectoryTxt.Text))
             {
-                if(existing.Count > 0 && justcreated==false)
+                if (existing.Count > 0 && justcreated == false)
                 {
-                    CRIDListBox.Invoke(new Action(()=>CRIDListBox.Items.AddRange(existing.ToArray())));
+                    CRIDListBox.Invoke(new Action(() => CRIDListBox.Items.AddRange(existing.ToArray())));
                 }
                 foreach (string files in Directory.GetFiles(DirectoryTxt.Text))
                 {
@@ -97,7 +97,7 @@ namespace CridPlayer
                     {
                         string filename = Path.GetFileName(files);
                         bool fileexist = false;
-                        foreach(string fileList in existing)
+                        foreach (string fileList in existing)
                         {
                             if (filename == fileList)
                             {
@@ -116,7 +116,7 @@ namespace CridPlayer
                     {
                         try
                         {
-                            
+
                             CRIDListBox.Invoke(new Action(() =>
                             {
                                 if (keepread)
@@ -131,7 +131,7 @@ namespace CridPlayer
                         {
 
                         }
-                        
+
                     }
                 }
             }
@@ -207,22 +207,94 @@ namespace CridPlayer
             }
         }
 
+        public List<string> usmlist_details()
+        {
+            List<string> result = new List<string>();
+            foreach(string file in existing)
+            {
+                FileStream fs = new FileStream(Path.Combine(DirectoryTxt.Text, file), FileMode.Open, FileAccess.Read);
+                BinaryReader br = new BinaryReader(fs);
+                br.BaseStream.Position = 0x20;
+                //FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Text += Encoding.ASCII.GetString(br.ReadBytes(4)) + Environment.NewLine));
+                int endofheader = 0x20 + BinaryPrimitives.ReadInt32BigEndian(br.ReadBytes(4));
+                br.ReadInt32();
+                int datastartpos = (0x20 + BinaryPrimitives.ReadInt32BigEndian(br.ReadBytes(4)));
+                br.BaseStream.Position = 0x20 + datastartpos;
+                List<byte> bytestring = new List<byte>();
+                List<string> stringlist = new List<string>();
+                for (int i = 0x20; i <= endofheader; i++)
+                {
+                    byte readbyte = br.ReadByte();
+                    if (readbyte != 0)
+                    {
+                        bytestring.Add(readbyte);
+                        if (i == endofheader)
+                        {
+                            i -= 1;
+                        }
+                    }
+                    else
+                    {
+                        stringlist.Add(Encoding.GetEncoding(932).GetString(bytestring.ToArray()));
+                        bytestring.Clear();
+                    }
+                }
+
+                string usmname, usmvideo, usmaudio;
+                usmname = "";
+                usmvideo = "";
+                usmaudio = "";
+                string[] strings = stringlist.ToArray();
+                for (int i = 0; i < strings.Length; i++)
+                {
+                    if (strings[i].Contains(".usm"))
+                    {
+                        usmname = strings[i];
+                        usmvideo = strings[i + 1];
+                        usmaudio = strings[i + 2];
+                        break;
+                    }
+                }
+
+                result.Add(file + "     " + usmname);
+            }
+            return result;
+        }
+
         private void OpenCridBtn_Click(object sender, EventArgs e)
         {
             keepread = false;
+            if (existing.Count < 1)
+                return;
             File.WriteAllLinesAsync(hashfilename, existing);
+            if (!File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename)))
+            {
+                var createlist = File.Create(AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename)+".txt");
+                createlist.Dispose();
+            }
+            string usmlist = AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename)+".txt";
+            List<string> list = usmlist_details();
+            File.WriteAllLines(usmlist,list);
             Form1 frm1 = null;
-            foreach(Form frm in Application.OpenForms)
+            foreach (Form frm in Application.OpenForms)
             {
                 if (frm.Name == "Form1")
                 {
                     frm1 = frm as Form1;
                 }
             }
-            if(frm1 != null && File.Exists(filepath))
+            if (frm1 != null && File.Exists(filepath))
             {
                 frm1.filepath = filepath;
                 this.Close();
+            }
+        }
+
+        private void SavelistBtn_Click(object sender, EventArgs e)
+        {
+            if (existing.Count > 0)
+            {
+                //string[] 
             }
         }
     }
