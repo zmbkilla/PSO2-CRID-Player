@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -13,86 +14,13 @@ using System.Windows.Forms;
 namespace CridPlayer
 {
 
-    public class DynamicMemoryStream : Stream
-    {
-        private readonly MemoryStream _memoryStream;
-        private long _position = 0;
-
-        public DynamicMemoryStream(MemoryStream memoryStream)
-        {
-            _memoryStream = memoryStream;
-        }
-
-        public override long Length => _memoryStream.Length;
-
-        public override long Position
-        {
-            get => _position;
-            set => _position = value;
-        }
-
-        public override bool CanRead => true;
-
-        public override bool CanSeek => true;
-
-        public override bool CanWrite => false;  // Prevent writing inside VLC
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            int bytesRead = 0;
-
-            while (bytesRead < count)
-            {
-                lock (_memoryStream)  // Ensure thread safety
-                {
-                    if (_position < _memoryStream.Length)
-                    {
-                        _memoryStream.Position = _position;
-                        int chunkSize = (int)Math.Min(count - bytesRead, _memoryStream.Length - _position);
-                        int bytesReadThisTime = _memoryStream.Read(buffer, offset + bytesRead, chunkSize);
-                        bytesRead += bytesReadThisTime;
-                        _position += bytesReadThisTime;
-                    }
-                    else
-                    {
-                        break; // Stop if there’s no more data yet
-                    }
-                }
-            }
-
-            return bytesRead;
-        }
-
-        public override void Flush() { }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            lock (_memoryStream)
-            {
-                switch (origin)
-                {
-                    case SeekOrigin.Begin:
-                        _position = offset;
-                        break;
-                    case SeekOrigin.Current:
-                        _position += offset;
-                        break;
-                    case SeekOrigin.End:
-                        _position = _memoryStream.Length - offset;
-                        break;
-                }
-            }
-            return _position;
-        }
-
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-    }
-
     public partial class OpenCridForm : Form
     {
+        public List<string> existing = new List<string>();
         public string filepath = "";
         public bool keepread = true;
+        MD5 filehash = MD5.Create();
+        string hashfilename;
         public OpenCridForm()
         {
             InitializeComponent();
@@ -109,21 +37,78 @@ namespace CridPlayer
             }
             else
             {
+                string[] listfiles = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory + "\\", "Filelist_*.txt");
+                foreach (string file in listfiles)
+                {
+                    byte[] filenamehash = filehash.ComputeHash(Encoding.ASCII.GetBytes(ofd.FolderName));
+                    string checkhash = BitConverter.ToString(filenamehash).Replace("-", "").ToLowerInvariant();
+                    if (Path.GetFileNameWithoutExtension(file).Contains(checkhash))
+                    {
+                        string[] read = File.ReadAllLines(file);
+                        existing.AddRange(read[2..]);
+                        hashfilename = file;
+                    }
+                }
                 DirectoryTxt.Text = ofd.FolderName;
+                
             }
+
+            
+            
+            
         }
 
         private async void DirectoryTxt_TextChanged(object sender, EventArgs e)
         {
+            
             await Task.Run(() => fillitems());
         }
 
         public async void fillitems()
         {
+            FileStream fscheck = null;
+            byte[] filenamehash = filehash.ComputeHash(Encoding.ASCII.GetBytes(DirectoryTxt.Text));
+            string checkfilehash = BitConverter.ToString(filenamehash).Replace("-","").ToLowerInvariant();
+            bool justcreated = false;
+            if (!File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\Filelist_" + checkfilehash + ".txt"))
+            {
+                var testfile = File.Create(AppDomain.CurrentDomain.BaseDirectory + "\\Filelist_" + checkfilehash + ".txt");
+                existing.Add(DirectoryTxt.Text);
+                existing.Add("");
+                hashfilename = AppDomain.CurrentDomain.BaseDirectory + "\\Filelist_" + checkfilehash + ".txt";
+                justcreated = true;
+                testfile.Dispose();
+            }
+            else
+            {
+
+            }
+
+
             if (Directory.Exists(DirectoryTxt.Text))
             {
+                if(existing.Count > 0 && justcreated==false)
+                {
+                    CRIDListBox.Invoke(new Action(()=>CRIDListBox.Items.AddRange(existing.ToArray())));
+                }
                 foreach (string files in Directory.GetFiles(DirectoryTxt.Text))
                 {
+                    if (existing.Count > 0)
+                    {
+                        string filename = Path.GetFileName(files);
+                        bool fileexist = false;
+                        foreach(string fileList in existing)
+                        {
+                            if (filename == fileList)
+                            {
+                                fileexist = true;
+                            }
+                        }
+                        if (fileexist)
+                        {
+                            continue;
+                        }
+                    }
                     FileStream fs = new FileStream(files, FileMode.Open, FileAccess.Read);
                     byte[] header = new byte[4];
                     fs.Read(header, 0, 4);
@@ -134,8 +119,11 @@ namespace CridPlayer
                             
                             CRIDListBox.Invoke(new Action(() =>
                             {
-                                if(keepread)
-                                CRIDListBox.Items.Add(Path.GetFileName(files));
+                                if (keepread)
+                                {
+                                    CRIDListBox.Items.Add(Path.GetFileName(files));
+                                    existing.Add(Path.GetFileName(files));
+                                }
                                 //CRIDListBox.Refresh();
                             }));
                         }
@@ -222,6 +210,7 @@ namespace CridPlayer
         private void OpenCridBtn_Click(object sender, EventArgs e)
         {
             keepread = false;
+            File.WriteAllLinesAsync(hashfilename, existing);
             Form1 frm1 = null;
             foreach(Form frm in Application.OpenForms)
             {
@@ -236,5 +225,82 @@ namespace CridPlayer
                 this.Close();
             }
         }
+    }
+
+
+    public class DynamicMemoryStream : Stream
+    {
+        private readonly MemoryStream _memoryStream;
+        private long _position = 0;
+
+        public DynamicMemoryStream(MemoryStream memoryStream)
+        {
+            _memoryStream = memoryStream;
+        }
+
+        public override long Length => _memoryStream.Length;
+
+        public override long Position
+        {
+            get => _position;
+            set => _position = value;
+        }
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => true;
+
+        public override bool CanWrite => false;  // Prevent writing inside VLC
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            int bytesRead = 0;
+
+            while (bytesRead < count)
+            {
+                lock (_memoryStream)  // Ensure thread safety
+                {
+                    if (_position < _memoryStream.Length)
+                    {
+                        _memoryStream.Position = _position;
+                        int chunkSize = (int)Math.Min(count - bytesRead, _memoryStream.Length - _position);
+                        int bytesReadThisTime = _memoryStream.Read(buffer, offset + bytesRead, chunkSize);
+                        bytesRead += bytesReadThisTime;
+                        _position += bytesReadThisTime;
+                    }
+                    else
+                    {
+                        break; // Stop if there’s no more data yet
+                    }
+                }
+            }
+
+            return bytesRead;
+        }
+
+        public override void Flush() { }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            lock (_memoryStream)
+            {
+                switch (origin)
+                {
+                    case SeekOrigin.Begin:
+                        _position = offset;
+                        break;
+                    case SeekOrigin.Current:
+                        _position += offset;
+                        break;
+                    case SeekOrigin.End:
+                        _position = _memoryStream.Length - offset;
+                        break;
+                }
+            }
+            return _position;
+        }
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }
