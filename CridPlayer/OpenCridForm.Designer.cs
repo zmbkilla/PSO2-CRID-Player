@@ -33,7 +33,8 @@
             OpenFileBtn = new Button();
             FileDetailsTxt = new RichTextBox();
             OpenCridBtn = new Button();
-            SavelistBtn = new Button();
+            progressBar1 = new ProgressBar();
+            label1 = new Label();
             SuspendLayout();
             // 
             // CRIDListBox
@@ -82,22 +83,28 @@
             OpenCridBtn.UseVisualStyleBackColor = true;
             OpenCridBtn.Click += OpenCridBtn_Click;
             // 
-            // SavelistBtn
+            // progressBar1
             // 
-            SavelistBtn.Location = new Point(572, 401);
-            SavelistBtn.Name = "SavelistBtn";
-            SavelistBtn.Size = new Size(153, 23);
-            SavelistBtn.TabIndex = 5;
-            SavelistBtn.Text = "Save current list to File";
-            SavelistBtn.UseVisualStyleBackColor = true;
-            SavelistBtn.Click += SavelistBtn_Click;
+            progressBar1.Location = new Point(38, 12);
+            progressBar1.Name = "progressBar1";
+            progressBar1.Size = new Size(729, 23);
+            progressBar1.TabIndex = 5;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(38, 66);
+            label1.Name = "label1";
+            label1.Size = new Size(0, 15);
+            label1.TabIndex = 6;
             // 
             // OpenCridForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
-            Controls.Add(SavelistBtn);
+            Controls.Add(label1);
+            Controls.Add(progressBar1);
             Controls.Add(OpenCridBtn);
             Controls.Add(FileDetailsTxt);
             Controls.Add(OpenFileBtn);
@@ -116,6 +123,7 @@
         private Button OpenFileBtn;
         private RichTextBox FileDetailsTxt;
         private Button OpenCridBtn;
-        private Button SavelistBtn;
+        private ProgressBar progressBar1;
+        private Label label1;
     }
 }

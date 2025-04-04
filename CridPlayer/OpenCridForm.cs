@@ -20,7 +20,11 @@ namespace CridPlayer
         public string filepath = "";
         public bool keepread = true;
         MD5 filehash = MD5.Create();
+        int filecount = 0;
         string hashfilename;
+        FileStream reader;
+        CancellationTokenSource cts = new CancellationTokenSource();
+
         public OpenCridForm()
         {
             InitializeComponent();
@@ -45,8 +49,16 @@ namespace CridPlayer
                     if (Path.GetFileNameWithoutExtension(file).Contains(checkhash))
                     {
                         string[] read = File.ReadAllLines(file);
-                        existing.AddRange(read[2..]);
-                        hashfilename = file;
+                        if(read.Length < 3)
+                        {
+                            File.Delete(file);
+
+                        }
+                        else
+                        {
+                            existing.AddRange(read);
+                            hashfilename = file;
+                        }
                     }
                 }
                 DirectoryTxt.Text = ofd.FolderName;
@@ -60,11 +72,10 @@ namespace CridPlayer
 
         private async void DirectoryTxt_TextChanged(object sender, EventArgs e)
         {
-
-            await Task.Run(() => fillitems());
+            await Task.Run(() => fillitems(cts.Token));
         }
 
-        public async void fillitems()
+        public async void fillitems(CancellationToken CT)
         {
             FileStream fscheck = null;
             byte[] filenamehash = filehash.ComputeHash(Encoding.ASCII.GetBytes(DirectoryTxt.Text));
@@ -81,7 +92,6 @@ namespace CridPlayer
             }
             else
             {
-
             }
 
 
@@ -89,10 +99,21 @@ namespace CridPlayer
             {
                 if (existing.Count > 0 && justcreated == false)
                 {
-                    CRIDListBox.Invoke(new Action(() => CRIDListBox.Items.AddRange(existing.ToArray())));
+                    string[] result = existing.ToArray()[2..];
+                    CRIDListBox.Invoke(new Action(() => CRIDListBox.Items.AddRange(result)));
+                    await Task.Run(()=> progressBar1.Invoke(new Action(() =>
+                    {
+
+                        progressBar1.Maximum = Directory.GetFiles(DirectoryTxt.Text).Count();
+                        progressBar1.Value = CRIDListBox.Items.Count;
+                        progressBar1.Update();
+                        label1.Text = "Count = " + CRIDListBox.Items.Count;
+                    })));
                 }
                 foreach (string files in Directory.GetFiles(DirectoryTxt.Text))
                 {
+                    if (CT.IsCancellationRequested)
+                        break;
                     if (existing.Count > 0)
                     {
                         string filename = Path.GetFileName(files);
@@ -106,6 +127,7 @@ namespace CridPlayer
                         }
                         if (fileexist)
                         {
+                            progressBar1.Invoke(new Action(() => progressBar1.Value++));
                             continue;
                         }
                     }
@@ -117,12 +139,19 @@ namespace CridPlayer
                         try
                         {
 
-                            CRIDListBox.Invoke(new Action(() =>
+                            CRIDListBox.Invoke(new Action(async () =>
                             {
                                 if (keepread)
                                 {
                                     CRIDListBox.Items.Add(Path.GetFileName(files));
                                     existing.Add(Path.GetFileName(files));
+                                    label1.Invoke(new Action(()=>label1.Text = "Count = "+ CRIDListBox.Items.Count));
+                                    await Task.Run(()=> progressBar1.Invoke(new Action(() =>
+                                    {
+                                        progressBar1.Value++;
+                                        progressBar1.Update();
+
+                                    })));
                                 }
                                 //CRIDListBox.Refresh();
                             }));
@@ -143,13 +172,13 @@ namespace CridPlayer
 
         private async void CRIDListBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            await Task.Run(() => filldetails());
+            await Task.Run(() => filldetails(cts.Token));
             string selecteditem = "";
             CRIDListBox.Invoke(new Action(() => selecteditem = CRIDListBox.SelectedItem.ToString()));
             filepath = Path.Combine(DirectoryTxt.Text, selecteditem);
         }
 
-        public async void filldetails()
+        public async void filldetails(CancellationToken CT)
         {
             FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Clear()));
             string selecteditem = "";
@@ -158,8 +187,8 @@ namespace CridPlayer
             {
 
 
-                FileStream fs = new FileStream(Path.Combine(DirectoryTxt.Text, selecteditem), FileMode.Open, FileAccess.Read);
-                BinaryReader br = new BinaryReader(fs);
+                reader = new FileStream(Path.Combine(DirectoryTxt.Text, selecteditem), FileMode.Open, FileAccess.Read);
+                BinaryReader br = new BinaryReader(reader);
                 br.BaseStream.Position = 0x20;
                 FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Text += Encoding.ASCII.GetString(br.ReadBytes(4)) + Environment.NewLine));
                 int endofheader = 0x20 + BinaryPrimitives.ReadInt32BigEndian(br.ReadBytes(4));
@@ -210,12 +239,15 @@ namespace CridPlayer
         public List<string> usmlist_details()
         {
             List<string> result = new List<string>();
-            foreach(string file in existing)
+            string[] filelistarr = existing.ToArray()[2..];
+            foreach(string file in filelistarr)
             {
+                reader.Dispose();
                 FileStream fs = new FileStream(Path.Combine(DirectoryTxt.Text, file), FileMode.Open, FileAccess.Read);
                 BinaryReader br = new BinaryReader(fs);
                 br.BaseStream.Position = 0x20;
                 //FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Text += Encoding.ASCII.GetString(br.ReadBytes(4)) + Environment.NewLine));
+                br.ReadInt32();
                 int endofheader = 0x20 + BinaryPrimitives.ReadInt32BigEndian(br.ReadBytes(4));
                 br.ReadInt32();
                 int datastartpos = (0x20 + BinaryPrimitives.ReadInt32BigEndian(br.ReadBytes(4)));
@@ -257,6 +289,7 @@ namespace CridPlayer
                 }
 
                 result.Add(file + "     " + usmname);
+                
             }
             return result;
         }
@@ -266,7 +299,9 @@ namespace CridPlayer
             keepread = false;
             if (existing.Count < 1)
                 return;
-            File.WriteAllLinesAsync(hashfilename, existing);
+            cts.Cancel();
+            var writefile = File.WriteAllLinesAsync(hashfilename, existing);
+            reader.Dispose();
             if (!File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename)))
             {
                 var createlist = File.Create(AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename)+".txt");
@@ -287,14 +322,6 @@ namespace CridPlayer
             {
                 frm1.filepath = filepath;
                 this.Close();
-            }
-        }
-
-        private void SavelistBtn_Click(object sender, EventArgs e)
-        {
-            if (existing.Count > 0)
-            {
-                //string[] 
             }
         }
     }
