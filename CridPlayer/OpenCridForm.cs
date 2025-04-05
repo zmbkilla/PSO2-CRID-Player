@@ -24,11 +24,24 @@ namespace CridPlayer
         string hashfilename;
         FileStream reader;
         CancellationTokenSource cts = new CancellationTokenSource();
+        UTFData videodata = new UTFData();
 
-        public OpenCridForm()
+        public struct UTFData
+        {
+            public string usmname;
+            public string videoname;
+            public string audioname;
+        }
+
+        public OpenCridForm(string path = "")
         {
             InitializeComponent();
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            if (Directory.Exists(Path.GetDirectoryName(path)))
+            {
+                filepath = Path.GetDirectoryName(path);
+            }
+
         }
 
         private void OpenFileBtn_Click(object sender, EventArgs e)
@@ -49,7 +62,7 @@ namespace CridPlayer
                     if (Path.GetFileNameWithoutExtension(file).Contains(checkhash))
                     {
                         string[] read = File.ReadAllLines(file);
-                        if(read.Length < 3)
+                        if (read.Length < 3)
                         {
                             File.Delete(file);
 
@@ -101,7 +114,7 @@ namespace CridPlayer
                 {
                     string[] result = existing.ToArray()[2..];
                     CRIDListBox.Invoke(new Action(() => CRIDListBox.Items.AddRange(result)));
-                    await Task.Run(()=> progressBar1.Invoke(new Action(() =>
+                    await Task.Run(() => progressBar1.Invoke(new Action(() =>
                     {
 
                         progressBar1.Maximum = Directory.GetFiles(DirectoryTxt.Text).Count();
@@ -145,8 +158,8 @@ namespace CridPlayer
                                 {
                                     CRIDListBox.Items.Add(Path.GetFileName(files));
                                     existing.Add(Path.GetFileName(files));
-                                    label1.Invoke(new Action(()=>label1.Text = "Count = "+ CRIDListBox.Items.Count));
-                                    await Task.Run(()=> progressBar1.Invoke(new Action(() =>
+                                    label1.Invoke(new Action(() => label1.Text = "Count = " + CRIDListBox.Items.Count));
+                                    await Task.Run(() => progressBar1.Invoke(new Action(() =>
                                     {
                                         progressBar1.Value++;
                                         progressBar1.Update();
@@ -230,6 +243,10 @@ namespace CridPlayer
                         break;
                     }
                 }
+
+                videodata.usmname = usmname;
+                videodata.videoname = usmvideo;
+                videodata.videoname = usmaudio;
                 FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Text += "USM Name = " + usmname + Environment.NewLine));
                 FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Text += "Source Video = " + usmvideo + Environment.NewLine));
                 FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Text += "Source Audio = " + usmaudio + Environment.NewLine));
@@ -240,7 +257,7 @@ namespace CridPlayer
         {
             List<string> result = new List<string>();
             string[] filelistarr = existing.ToArray()[2..];
-            foreach(string file in filelistarr)
+            foreach (string file in filelistarr)
             {
                 reader.Dispose();
                 FileStream fs = new FileStream(Path.Combine(DirectoryTxt.Text, file), FileMode.Open, FileAccess.Read);
@@ -289,7 +306,7 @@ namespace CridPlayer
                 }
 
                 result.Add(file + "     " + usmname);
-                
+
             }
             return result;
         }
@@ -304,12 +321,12 @@ namespace CridPlayer
             reader.Dispose();
             if (!File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename)))
             {
-                var createlist = File.Create(AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename)+".txt");
+                var createlist = File.Create(AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename) + ".txt");
                 createlist.Dispose();
             }
-            string usmlist = AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename)+".txt";
+            string usmlist = AppDomain.CurrentDomain.BaseDirectory + "\\USMList_" + Path.GetFileNameWithoutExtension(hashfilename) + ".txt";
             List<string> list = usmlist_details();
-            File.WriteAllLines(usmlist,list);
+            File.WriteAllLines(usmlist, list);
             Form1 frm1 = null;
             foreach (Form frm in Application.OpenForms)
             {
@@ -321,8 +338,40 @@ namespace CridPlayer
             if (frm1 != null && File.Exists(filepath))
             {
                 frm1.filepath = filepath;
+                frm1.USMData.usmname = videodata.usmname;
+                frm1.USMData.videoname = videodata.videoname;
+                frm1.USMData.audioname = videodata.audioname;
                 this.Close();
             }
+        }
+
+        private void OpenCridForm_Shown(object sender, EventArgs e)
+        {
+            string[] listfiles = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory + "\\", "Filelist_*.txt");
+            foreach (string file in listfiles)
+            {
+                if (filepath != "")
+                {
+                    byte[] filenamehash = filehash.ComputeHash(Encoding.ASCII.GetBytes(filepath));
+                    string checkhash = BitConverter.ToString(filenamehash).Replace("-", "").ToLowerInvariant();
+                    if (Path.GetFileNameWithoutExtension(file).Contains(checkhash))
+                    {
+                        string[] read = File.ReadAllLines(file);
+                        if (read.Length < 3)
+                        {
+                            File.Delete(file);
+
+                        }
+                        else
+                        {
+                            existing.AddRange(read);
+                            hashfilename = file;
+                        }
+                    }
+                }
+            }
+            Thread.Sleep(100);
+            DirectoryTxt.Text = filepath;
         }
     }
 

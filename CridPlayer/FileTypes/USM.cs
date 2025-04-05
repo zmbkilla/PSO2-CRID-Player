@@ -24,6 +24,7 @@ namespace OpenTK.FileTypes
         private byte[] _videoMask1;
         private byte[] _videoMask2;
         private byte[] _audioMask;
+        public bool done = false;
         public USM(string filename, byte[] key1, byte[] key2)
         {
             _path = filename;

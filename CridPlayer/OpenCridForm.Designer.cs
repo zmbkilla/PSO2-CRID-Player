@@ -112,6 +112,7 @@
             Controls.Add(CRIDListBox);
             Name = "OpenCridForm";
             Text = "Open CRID";
+            Shown += OpenCridForm_Shown;
             ResumeLayout(false);
             PerformLayout();
         }

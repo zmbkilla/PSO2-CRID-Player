@@ -27,7 +27,7 @@ namespace UsmTool
     }
     public class ConvertFile
     {
-
+        public bool smallerthanmb = false;
         public ulong? EncryptionKey(string videoFilename)
         {
             //ulong key1 = EncryptionKeyInFilename(videoFilename);
@@ -113,6 +113,10 @@ namespace UsmTool
                 return false;
 
             file.DemuxAsync(true, true, ref VidMS, ref ADXMS);
+            if (file.done)
+            {
+                smallerthanmb = true;
+            }
             return true;
         }
     }

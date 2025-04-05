@@ -19,6 +19,8 @@ using System.Runtime.CompilerServices;
 using FlyleafLib;
 using FlyleafLib.MediaPlayer;
 using OpenTK.FileTypes;
+using System.Windows;
+using System.Windows.Input;
 
 namespace CridPlayer
 {
@@ -33,6 +35,15 @@ namespace CridPlayer
         public Player Player { get; set; }
         public Config Config { get; set; }
         public string filepath = "";
+        public UTFData USMData = new UTFData();
+
+        public struct UTFData
+        {
+            public string usmname;
+            public string videoname;
+            public string audioname;
+        }
+
         public Form1()
         {
             InitializeComponent();
@@ -40,11 +51,13 @@ namespace CridPlayer
             Player = new Player(Config);
             MPlayer.Stopped += (sender, e) =>
             {
-                if(process != null)
-                process.Kill();
+                if (process != null)
+                    process.Kill();
 
                 Player.Stop();
             };
+            button1.TabStop = false;
+            adxBtn.TabStop = false;
         }
 
         private async void button1_Click(object sender, EventArgs e)
@@ -57,18 +70,33 @@ namespace CridPlayer
                 MPlayer.Stop();
             }
             OpenFileDialog ofd = new OpenFileDialog();
-            OpenCridForm ocf = new OpenCridForm();
+            OpenCridForm ocf = new OpenCridForm(filepath);
             ocf.ShowDialog();
-            if (filepath != ""&&!File.Exists(filepath))
+            if (filepath != "" && !File.Exists(filepath))
             {
-                MessageBox.Show("invalid filepath");
+                System.Windows.Forms.MessageBox.Show("invalid filepath");
                 return;
-            }else if(filepath == "")
+            }
+            else if (filepath == "")
             {
-                MessageBox.Show("No file selected");
+                System.Windows.Forms.MessageBox.Show("No file selected");
                 return;
             }
             //await Task.Run(() => cvf.Demux(filepath, key1, key2, ref video, ref audio));
+
+            richTextBox1.Clear();
+            richTextBox1.AppendText("USM Name: ");
+            richTextBox1.SelectionColor = Color.Red;
+            richTextBox1.AppendText(USMData.usmname +Environment.NewLine);
+            richTextBox1.SelectionColor = Color.White;
+            richTextBox1.AppendText("Source Video: ");
+            richTextBox1.SelectionColor = Color.Red;
+            richTextBox1.AppendText(USMData.videoname + Environment.NewLine);
+            richTextBox1.SelectionColor = Color.White;
+            richTextBox1.AppendText("Source Audio: ");
+            richTextBox1.SelectionColor = Color.Red;
+            richTextBox1.AppendText(USMData.audioname + Environment.NewLine);
+
             MemoryStream ms1 = new MemoryStream();
             MemoryStream ms2 = new MemoryStream();
 
@@ -76,9 +104,13 @@ namespace CridPlayer
             DynamicMemoryStream adms = new DynamicMemoryStream(ms2);
             //await Task.Run(() => cvf.DemuxASync(filepath, key1, key2, ref vdms, ref adms));
             await Task.Run(() => cvf.DemuxASync(filepath, key1, key2, ref ms1, ref ms2));
-            while(ms1.ToArray().Length < (1024*1024))
+            while (ms1.ToArray().Length < (1024 * 1024))
             {
                 Thread.Sleep(1000);
+                if (cvf.smallerthanmb = true)
+                {
+                    break;
+                }
             }
             //if (video == null)
             //{
@@ -129,7 +161,6 @@ namespace CridPlayer
             // Create a media from the MemoryStream input
             var mediaInput = new StreamMediaInput(vms);
             var media = new Media(_libVLC, mediaInput); // Use LibVLC to create media from StreamMediaInput
-
             // Play the media using the MediaPlayer if there is audio
             if (hasAudio == true)
             {
@@ -154,8 +185,9 @@ namespace CridPlayer
             MPlayer.Play(media);
             while (MPlayer.IsPlaying)
             {
-                if(hasAudio)
-                Player.CurTime = MPlayer.Time;
+
+                if (hasAudio)
+                    Player.CurTime = MPlayer.Time;
             }
         }
 
@@ -168,6 +200,7 @@ namespace CridPlayer
                 flyleafHost1.Player.Play();
             }
             MPlayer.Play(media);
+            CridViewer.Focus();
             while (MPlayer.IsPlaying)
             {
                 if (hasAudio)
@@ -211,7 +244,7 @@ namespace CridPlayer
             {
                 if (!File.Exists(ofd.FileName))
                 {
-                    MessageBox.Show("Error file does not exist or error reading file location");
+                    System.Windows.Forms.MessageBox.Show("Error file does not exist or error reading file location");
                     return;
                 }
             }
@@ -234,10 +267,10 @@ namespace CridPlayer
                 AdxReader adxr = new AdxReader();
                 adxdata addata = new adxdata();
                 adxr.getadxencoding(adms, ref addata);
-                string res = "sample rate: "+addata.samplerate +"\n channels: " + addata.channels+"\n bitspersample: "+addata.bitspersample;
+                string res = "sample rate: " + addata.samplerate + "\n channels: " + addata.channels + "\n bitspersample: " + addata.bitspersample;
                 //MessageBox.Show(res);
                 //lets try this ai mess of a code
-                bool looping = adxhandler.ADX_Info.Loop >0? true : false;
+                bool looping = adxhandler.ADX_Info.Loop > 0 ? true : false;
                 //adxhandler.AdxDec(adms.ToArray(), looping);
                 byte[] test = null;
                 //await Task.Run(() => test = ADXDecoder.DecodeADX(adms.ToArray(),addata.startoffset,addata.samplecount,addata.channels,addata.blocksize));
@@ -252,17 +285,10 @@ namespace CridPlayer
                 Player.OpenAsync(adms);
                 flyleafHost1.Player = Player;
                 flyleafHost1.Player.Play();
-               
+
 
             }
-            
+
         }
-
-
-
     }
-
-    
-
-
 }
