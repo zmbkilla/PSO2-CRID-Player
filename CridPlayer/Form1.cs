@@ -63,8 +63,8 @@ namespace CridPlayer
         private async void button1_Click(object sender, EventArgs e)
         {
             ConvertFile cvf = new ConvertFile();
-            byte[] key1 = Convert.FromHexString("207DFFFF");
-            byte[] key2 = Convert.FromHexString("00B8F21B");
+            byte[] key1 = Convert.FromHexString("207DFFFF");//207DFFFF
+            byte[] key2 = Convert.FromHexString("00B8F21B");//00B8F21B
             if (MPlayer.IsPlaying)
             {
                 MPlayer.Stop();

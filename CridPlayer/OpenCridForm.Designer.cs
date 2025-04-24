@@ -35,6 +35,7 @@
             OpenCridBtn = new Button();
             progressBar1 = new ProgressBar();
             label1 = new Label();
+            textBox1 = new TextBox();
             SuspendLayout();
             // 
             // CRIDListBox
@@ -75,7 +76,7 @@
             // 
             // OpenCridBtn
             // 
-            OpenCridBtn.Location = new Point(439, 401);
+            OpenCridBtn.Location = new Point(663, 397);
             OpenCridBtn.Name = "OpenCridBtn";
             OpenCridBtn.Size = new Size(75, 23);
             OpenCridBtn.TabIndex = 4;
@@ -98,11 +99,20 @@
             label1.Size = new Size(0, 15);
             label1.TabIndex = 6;
             // 
+            // textBox1
+            // 
+            textBox1.Location = new Point(378, 397);
+            textBox1.Name = "textBox1";
+            textBox1.Size = new Size(260, 23);
+            textBox1.TabIndex = 7;
+            textBox1.KeyPress += textBox1_KeyPress;
+            // 
             // OpenCridForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
+            Controls.Add(textBox1);
             Controls.Add(label1);
             Controls.Add(progressBar1);
             Controls.Add(OpenCridBtn);
@@ -126,5 +136,6 @@
         private Button OpenCridBtn;
         private ProgressBar progressBar1;
         private Label label1;
+        private TextBox textBox1;
     }
 }

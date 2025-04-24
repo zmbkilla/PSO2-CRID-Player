@@ -110,6 +110,7 @@ namespace CridPlayer
 
             if (Directory.Exists(DirectoryTxt.Text))
             {
+                CRIDListBox.Invoke(new Action(() => CRIDListBox.Items.Clear()));
                 if (existing.Count > 0 && justcreated == false)
                 {
                     string[] result = existing.ToArray()[2..];
@@ -117,7 +118,7 @@ namespace CridPlayer
                     await Task.Run(() => progressBar1.Invoke(new Action(() =>
                     {
 
-                        progressBar1.Maximum = Directory.GetFiles(DirectoryTxt.Text).Count();
+                        progressBar1.Maximum = Directory.GetFiles(DirectoryTxt.Text).Length;
                         progressBar1.Value = CRIDListBox.Items.Count;
                         progressBar1.Update();
                         label1.Text = "Count = " + CRIDListBox.Items.Count;
@@ -140,6 +141,7 @@ namespace CridPlayer
                         }
                         if (fileexist)
                         {
+                            if(progressBar1.Value < progressBar1.Maximum)
                             progressBar1.Invoke(new Action(() => progressBar1.Value++));
                             continue;
                         }
@@ -161,7 +163,8 @@ namespace CridPlayer
                                     label1.Invoke(new Action(() => label1.Text = "Count = " + CRIDListBox.Items.Count));
                                     await Task.Run(() => progressBar1.Invoke(new Action(() =>
                                     {
-                                        progressBar1.Value++;
+                                        if (progressBar1.Value != progressBar1.Maximum)
+                                            progressBar1.Value++;
                                         progressBar1.Update();
 
                                     })));
@@ -246,7 +249,7 @@ namespace CridPlayer
 
                 videodata.usmname = usmname;
                 videodata.videoname = usmvideo;
-                videodata.videoname = usmaudio;
+                videodata.audioname = usmaudio;
                 FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Text += "USM Name = " + usmname + Environment.NewLine));
                 FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Text += "Source Video = " + usmvideo + Environment.NewLine));
                 FileDetailsTxt.Invoke(new Action(() => FileDetailsTxt.Text += "Source Audio = " + usmaudio + Environment.NewLine));
@@ -311,10 +314,12 @@ namespace CridPlayer
             return result;
         }
 
+        
+
         private void OpenCridBtn_Click(object sender, EventArgs e)
         {
             keepread = false;
-            if (existing.Count < 1)
+            if (existing.Count < 1 || CRIDListBox.SelectedItem == null)
                 return;
             cts.Cancel();
             var writefile = File.WriteAllLinesAsync(hashfilename, existing);
@@ -372,6 +377,19 @@ namespace CridPlayer
             }
             Thread.Sleep(100);
             DirectoryTxt.Text = filepath;
+        }
+
+        private void textBox1_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if(e.KeyChar ==(char)Keys.Enter)
+                for(int i = 0;i<CRIDListBox.Items.Count;i++)
+                {
+                    if (CRIDListBox.Items[i].ToString() == textBox1.Text)
+                    {
+                        CRIDListBox.SelectedIndex = i;
+                        CRIDListBox.TopIndex = i;
+                    }
+                }
         }
     }
 

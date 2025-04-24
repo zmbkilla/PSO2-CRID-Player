@@ -93,6 +93,18 @@ namespace OpenTK.FileTypes
             for (int i = 0; i < 0x100; i++) data[i + dataOffset] ^= mask[i & 0x1F] ^= data[0x100 + i + dataOffset];
         }
 
+        private void DemuxVideo(ref byte[] data, int size)
+        {
+            const int dataOffset = 0x40;
+            // Assume dataOffset is defined earlier and dynamic
+            size -= dataOffset;
+            if (size < 0x200) return;
+
+            // Remove decryption, just shift the data if needed
+            Buffer.BlockCopy(data, dataOffset, data, 0, size);
+            Array.Clear(data, size, data.Length - size);
+        }
+
         // Not used anyway, but might be in the future
         private void MaskAudio(ref byte[] data, uint size)
         {
@@ -153,6 +165,7 @@ namespace OpenTK.FileTypes
                                 if (videoExtract)
                                 {
                                     MaskVideo(ref data, size);
+                                    //DemuxVideo(ref data, size);
                                     //path = Path.Combine(outputDir, _filename[..^4] + ".m2v");
                                     //if (!fileStreams.ContainsKey(path))
                                     //{
