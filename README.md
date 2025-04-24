@@ -13,3 +13,6 @@
 - LibVLCSharp for Video Playback.
 - FlyleafLib for ADX Playback.
 - GI-Cutscenes [https://github.com/ToaHartor/GI-cutscenes] for CRID decoding.
+
+<h2>Building</h2>
+Ensure that you have the library files for both vlc and ffmpeg for the program to work.
